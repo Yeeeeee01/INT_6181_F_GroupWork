@@ -14,7 +14,7 @@ demo_B.py              # 命令行功能演示及完整 JSON 输出
 README_B.md            # 安装配置、接口、演示、测试和图片来源
 .env.example           # 不含密钥的配置模板
 .gitignore             # 忽略本地环境、配置及运行产物
-.env                   # 条件性共享配置：确认仓库为 Private 后另行加入
+.env                   # 团队共享的真实百度配置，包含敏感凭据
 test_pictures/         # 全部交付图片
 ├── CN-*.jpg / *.png   # 根目录：8 张发票样例，供识别测试
 └── screenshots/       # 子目录：9 张服务配置、演示和测试说明截图
@@ -41,12 +41,12 @@ test_pictures/         # 全部交付图片
 | [demo_B.py](demo_B.py) | 演示真实识别、离线流程、纯手动填写、只识别及 JSON 输出 | 按第 4 节命令操作，用于试运行和功能展示 |
 | [README_B.md](README_B.md) | 集中说明依赖、配置、接口约定、操作方法、验证结果及图片来源 | 作为本模块的技术使用入口 |
 | [.env.example](.env.example) | 提供两个百度配置键的空白模板，不包含真实凭据 | 尚未取得共享配置时，由应用所有者据此准备 `.env` |
-| [.gitignore](.gitignore) | 排除虚拟环境、缓存、本地配置及运行产物 | 保留忽略规则；共享 `.env` 的显式加入方式见第 2.4 节 |
+| [.gitignore](.gitignore) | 排除虚拟环境、缓存、本地配置及运行产物 | 保留忽略规则；已跟踪共享配置的注意事项见第 2.4 节 |
 | `test_pictures/CN-*` | 8 张公开发票样例：7 张正面核对样例、1 张金额矛盾复核案例 | 将具体图片路径传给 OCR；票种、核对值及来源见第 5、6 节 |
 | [test_pictures/screenshots/](test_pictures/screenshots/) | 9 张说明截图：2 张百度平台、3 张完整终端输出、4 张自动验证输出 | 配合第 2、4、5 节阅读，直观查看配置和运行结果 |
-| `.env`（条件性文件） | 保存团队授权使用的真实百度凭据 | 仅在所有者确认仓库为 Private 后加入；获准成员按第 2 节使用 |
+| `.env` | 保存团队共享的真实百度凭据 | 取得包含此文件的分支后按第 2 节使用；访问范围由仓库所有者管理 |
 
-以上已整理的上传清单共 **24 个文件**，全部图片位于 `test_pictures` 内，根目录发票样例与说明截图子目录分别使用。真实 `.env` 按第 2.4 节满足条件后追加，届时共 **25 个文件**；虚拟环境、缓存、个人报告及本地开发记录不在本次清单内。
+本模块交付清单共 **25 个文件**，包含团队共享的真实 `.env`。全部图片位于 `test_pictures` 内，根目录发票样例与说明截图子目录分别使用；虚拟环境、缓存、个人报告及本地开发记录不在本次清单内。
 
 ## 2. 安装与密钥配置
 
@@ -69,7 +69,7 @@ python -m pip install "requests>=2.32,<3" "Pillow>=12,<13" "python-dotenv>=1,<2"
 
 ### 2.2 团队共享百度配置
 
-本组采用**私有仓库共享 `.env`** 的方式使用同一个百度应用。仓库所有者先确认仓库为 **Private**、仅授权指定组员，再提交位于 `ocr.py` 同目录的 `.env`。获准成员克隆包含该配置的版本、安装依赖后，即可调用真实识别，无需各自开通百度应用。
+本组通过位于 `ocr.py` 同目录的 **`.env` 共享同一个百度应用**。成员切换到包含该配置的 `ocr` 分支、安装依赖后，即可调用真实识别，无需各自开通百度应用。仓库所有者负责将仓库设为 **Private** 并仅授权指定组员；公开仓库中的配置对任何人可见，注意事项见第 2.4 节。
 
 配置文件使用以下两个键。下列只是格式说明，实际值由百度应用所有者填入共享文件：
 
@@ -96,9 +96,9 @@ BAIDU_SECRET_KEY=获授权应用的SecretKey
 
 ### 2.4 仓库所有者注意事项
 
-1. **先设置 Private，再提交真实 `.env`。** 仓库所有者或管理员在 Settings → General → Danger Zone → Change repository visibility 修改可见性，并核对协作成员名单。普通协作者不能代替所有者修改该设置，参见 [GitHub 可见性说明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)。
-2. `.gitignore` 默认忽略 `.env`。确认目标仓库已为 Private 后，由所有者或获授权的提交者显式执行 `git add -f .env`，检查暂存内容，再提交到该私有仓库。**仓库仍为 Public 时不要执行这一步，也不要推送含密钥的历史。**
-3. 获准成员可以读取、克隆和保留 `.env` 及其历史；Private 无法做到“能运行但看不到密钥”。限制成员范围，不把含配置的仓库转为公开，也不把凭据放入 README、截图、日志或公开副本。若仓库曾经公开，已有公开派生副本不会随原仓库改为 Private 自动消失。
+1. **包含真实凭据的仓库应设为 Private，并仅邀请指定组员。** 仓库所有者或管理员在 Settings → General → Danger Zone → Change repository visibility 修改可见性，并核对协作成员名单。普通协作者不能代替所有者修改该设置，参见 [GitHub 可见性说明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)。
+2. 团队共享的 `.env` 已显式加入版本控制。`.gitignore` 的忽略规则不会阻止已跟踪文件的后续修改被提交；更新密钥时，仅暂存所需文件，避免把虚拟环境、缓存及其他本地配置加入提交。
+3. 获准成员可以读取、克隆和保留 `.env` 及其历史；Private 无法做到“能运行但看不到密钥”。仓库处于 Public 时，任何人都能读取这些凭据；之后改为 Private 不能撤回已有克隆或副本。限制成员范围，不把凭据复制到 README、截图或日志。
 4. 百度应用所有者关注共享额度和使用情况。密钥泄露或成员不再获授权时，在百度控制台撤销或轮换凭据，并更新共享配置；仅删掉仓库中的文件不能撤回历史及他人克隆中的密钥。处理方法参见 [GitHub 敏感数据说明](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)。
 
 ## 3. 接口接入
