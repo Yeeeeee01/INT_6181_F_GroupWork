@@ -1,6 +1,6 @@
 # B 模块 OCR 扫描与手动填写
 
-识别中国大陆增值税发票，提供标准四字段记录、可选票面信息，以及人工确认和手动填写兜底。模块供 Python 程序导入使用；demo_B.py 提供命令行演示。业务校验、数据库和主菜单由调用方接续处理。
+识别中国大陆增值税发票，提供标准四字段记录、可选票面信息，以及人工确认和手动填写兜底。模块供 Python 程序导入使用；demo_B.py 提供命令行演示，项目主程序 `main.py` 提供与 A 模块联动的桌面界面和手动兜底。A/B 联动运行方式见根目录 [README.md](README.md)。
 
 [文件用途与阅读顺序](#1-模块文件) · [安装与密钥配置](#2-安装与密钥配置) · [接口接入](#3-接口接入) · [演示](#4-演示) · [测试与识别样例](#5-测试与识别样例) · [图片来源](#6-图片来源)
 
@@ -8,6 +8,7 @@
 
 ```text
 ocr.py                 # 必交：图片预检、百度识别及字段解析
+local_ocr.py           # 可选：本地 RapidOCR 识别及发票核心字段提取
 manual_input.py        # 必交：人工确认、修改、手动填写和取消
 example_B.py           # 接口调用参考：最简识别、完整录入、纯手动填写
 demo_B.py              # 命令行功能演示及完整 JSON 输出
@@ -36,6 +37,7 @@ test_pictures/         # 全部交付图片
 | 文件或目录 | 作用 | 成员使用方式 |
 | --- | --- | --- |
 | [ocr.py](ocr.py) | 检查图片、调用百度、规范化核心字段，提供可选票面信息和失败原因 | 导入 `recognize()` 或 `recognize_detailed()`，每张图片选择一个入口 |
+| [local_ocr.py](local_ocr.py) | 使用 RapidOCR 在本地识别图片文字；图片按版面提取发票种类、销售方、不含税合计、合计税额及商品明细，可检索 PDF 从第一页文本层补充买卖方及金额字段 | 桌面主程序通过“本地 RapidOCR 识别”按钮调用；识别失败可切换百度或手动录入 |
 | [manual_input.py](manual_input.py) | 确认或修改识别值；识别失败后从空白填写；支持取消和编辑标记 | 导入 `collect_invoice()`，传入识别记录或 `None` |
 | [example_B.py](example_B.py) | 展示三个独立接口调用示例及 Python 返回对象用法 | 优先阅读注释，参考并复制所需调用语句；也可直接运行 |
 | [demo_B.py](demo_B.py) | 演示真实识别、离线流程、纯手动填写、只识别及 JSON 输出 | 按第 4 节命令操作，用于试运行和功能展示 |
@@ -57,15 +59,17 @@ test_pictures/         # 全部交付图片
 | HTTPS 请求 | requests | >=2.32,<3 |
 | 图片格式和完整性检查 | Pillow | >=12,<13 |
 | 读取配置 | python-dotenv | >=1,<2 |
+| 本地 OCR | rapidocr_onnxruntime | >=1.4,<2 |
+| PDF 页面渲染 | PyMuPDF | >=1.24,<2 |
 | 自动测试 | pytest、pytest-cov | >=8,<10；>=6,<8 |
 
-运行模块安装前三项即可：
+运行本地和百度 OCR 安装：
 
 ```bash
-python -m pip install "requests>=2.32,<3" "Pillow>=12,<13" "python-dotenv>=1,<2"
+python -m pip install -r requirements.txt
 ```
 
-已验证 Python 3.14.7。标准库无需额外安装；其他 Python 或依赖版本应重新验证兼容性。
+RapidOCR 在本机完成文字检测与识别，不需要百度密钥；首次使用需加载模型，图片和文字不发送到百度。Baidu OCR 仍可使用项目原有密钥配置和云端服务。标准库无需额外安装；其他 Python 或依赖版本应重新验证兼容性。
 
 ### 2.2 团队共享百度配置
 
@@ -88,11 +92,11 @@ BAIDU_SECRET_KEY=获授权应用的SecretKey
 
 ![百度官网增值税发票识别调试成功及响应数据](test_pictures/screenshots/13_baidu_console_success.png)
 
-若下载的版本尚未包含共享配置，可将 [.env.example](.env.example) 复制为 `.env`，由应用所有者填写授权凭据。纯手动填写和离线演示不需要凭据，也不发送云端请求。
+若下载的版本尚未包含共享配置，可将 [.env.example](.env.example) 复制为 `.env`，由应用所有者填写授权凭据。纯手动填写、离线演示及本地 RapidOCR 不需要百度凭据；RapidOCR 不发起百度云端请求。
 
 ### 2.3 其他成员怎样调用
 
-其他成员取得代码和获授权的共享配置后，直接 `import ocr` 和 `from manual_input import collect_invoice`，按第 3 节调用即可。请求由运行代码的电脑发往百度，所有成员共用该百度应用的额度。GitHub 保存项目文件；本模块提供 Python 函数接口，没有部署远程 HTTP 服务。
+其他成员可选择百度云 OCR 或桌面主程序中的本地 RapidOCR。百度识别请求由运行代码的电脑发往百度并共用应用额度；RapidOCR 在本机推理，不发送识别请求到百度。GitHub 保存项目文件；本模块提供 Python 函数接口，没有部署远程 HTTP 服务。
 
 ### 2.4 仓库所有者注意事项
 
@@ -359,18 +363,15 @@ python demo_B.py --image test_pictures/does_not_exist.jpg
 
 ### 5.1 完整回归与覆盖率
 
-VS Code 默认发现 `tests/` 中的 **110 项测试**，本次完整运行 **110/110 通过**。核心模块语句覆盖率合计约 **96%**，其中 `ocr.py` 约 95%、`manual_input.py` 100%。覆盖四字段契约、金额与日期、图片预检、鉴权和有限重试、可选字段与明细行号、手动修改/取消、演示脚本及三文件独立运行。
+当前 `model_C` 分支包含 `tests/test_application.py` 的 **14 项联动测试**，使用 SQLite 临时数据库和模拟数据；测试包含 RapidOCR 对样例图片及本地 PDF 的识别，并核对购买方名称及税号，不调用百度。覆盖规则校验、两种 OCR 到数据库的联动、PDF 文本层字段提取、首页渲染及原件归档、手动兜底、照片归档、重复拒绝、查询统计和旧数据库迁移。README 中保留的 110 项回归截图和记录来自先前完整开发环境；原 110 项测试源码不在当前分支，不能在当前 checkout 重跑。
 
-这些回归测试使用模拟响应及子进程，不调用百度；语句覆盖率不是 OCR 图片识别准确率。安装开发依赖后，在包含测试源码及辅助文件的完整开发项目中执行：
+在当前项目根目录运行联动测试：
 
 ```bash
-python -m pip install "pytest>=8,<10" "pytest-cov>=6,<8"
-python -m pytest tests --cov=ocr --cov=manual_input --cov-report=term-missing
+python -m unittest discover -s tests -v
 ```
 
-![VS Code 完整 110 项回归及覆盖率实际输出](test_pictures/screenshots/07_vscode_110_tests.jpg)
-
-最小模块包不包含完整 `tests/` 和开发辅助文件；只取得模块包时，可按第 4 节直接运行演示验证接口。
+回归测试不调用百度；通过本地模拟测试不代表 OCR 图片识别准确率。截图 `07_vscode_110_tests.jpg` 仅作先前测试运行记录。
 
 ### 5.2 第 4 节演示与人工流程
 
@@ -413,17 +414,19 @@ python -m pytest tests --cov=ocr --cov=manual_input --cov-report=term-missing
 
 ![VS Code 八张样例核对和三个指定测试的实际输出](test_pictures/screenshots/11_vscode_samples_selected.jpg)
 
-### 5.5 三个具体测试
+### 5.5 当前分支的联动测试
 
-上图下半部分单独运行了以下三个既有测试，结果 **3/3 通过**：
+`tests/test_application.py` 还验证了：
 
 | 测试节点 | 核对内容 |
 | --- | --- |
-| `tests/test_ocr.py::test_contract_and_tax_total` | 四字段契约；金额使用含税价税合计，保留票号前导零 |
-| `tests/test_common_fields.py::test_sparse_columns_aligned_by_row_not_array_index` | 明细列缺项时按 row 对齐，避免不同商品行错配 |
-| `tests/test_manual_input.py::test_changed_amount_marks_edited` | 人工修改金额后更新记录，并准确记录编辑标记及修改字段 |
-
-可在完整开发项目中使用 `python -m pytest 测试节点 -vv -rA` 逐个运行。演示验证独立分为四组运行，截图中的“四组通过”不是默认回归数量；这三个测试也已包含在原有 110 项中。演示完成后，VS Code 默认测试目录恢复为 `tests`，总数仍为 110。
+| 测试覆盖 | 校验未来日期、金额边界、类别与票号类型错误 |
+| OCR→A→数据库 | 模拟 OCR 响应规范化后校验并保存 |
+| 手动兜底 | 无 OCR 时手动录入生成业务记录 |
+| 入库与防重 | 归档照片、记录编辑标记、重复票号拒绝 |
+| 查询统计 | 按人/月/类别组合过滤，金额以 Decimal 精确求和 |
+| 数据库升级 | 旧数据库保留数据并为旧记录补默认编辑状态 |
+| 本地 OCR | RapidOCR 实际识别 CN-05 样例的号码、日期和价税合计，并联动写入临时数据库 |
 
 ## 6. 图片来源
 

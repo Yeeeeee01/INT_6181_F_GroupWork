@@ -9,9 +9,9 @@ database.py —— 数据库操作模块（小组作业 A 部分）
 
 "记录"统一使用字典：
     {
-        "invoice_no": "12345678",     # 8 位数字字符串
+        "invoice_no": "12345678",     # 非空发票号码文本
         "date":       "2026-11-01",   # YYYY-MM-DD
-        "amount":     128.50,         # 数字，0 < 金额 < 10000
+        "amount":     128.50,         # 有限数字，不限制金额范围
         "category":   "餐饮",          # 餐饮 / 交通 / 办公 / 其他
         "reimburser": "张三",          # 报销人，可选，缺省为 "未知"
     }
@@ -30,7 +30,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "invoices.db"
 # 查询时统一返回给上层的字段（把 invoice_date 别名成 date，与记录格式保持一致）
 _SELECT_FIELDS = """
     id, invoice_no, invoice_date AS date, amount, category,
-    reimburser, photo_path, created_at
+    reimburser, photo_path, created_at, is_edited
 """
 
 
@@ -106,8 +106,8 @@ def insert(record, photo_path, db_path=None):
                 """
                 INSERT INTO invoices
                     (invoice_no, invoice_date, amount, category,
-                     reimburser, photo_path, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     reimburser, photo_path, created_at, is_edited)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     invoice_no.strip(),
@@ -117,6 +117,7 @@ def insert(record, photo_path, db_path=None):
                     reimburser,
                     str(photo_path),
                     created_at,
+                    int(bool(record.get("is_edited", False))),
                 ),
             )
         return True

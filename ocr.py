@@ -262,6 +262,7 @@ class RecognitionResult:
     attempts: int = 0
     common_fields: CommonInvoiceFields | None = None
     field_warnings: tuple[str, ...] = ()
+    purchaser_name: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -649,7 +650,8 @@ class BaiduInvoiceClient:
                     record = normalize_response(data)
                     return RecognitionResult(record=record, request_id=request_id,
                                              elapsed_ms=round((self._clock() - started) * 1000), attempts=attempts,
-                                             common_fields=common_fields, field_warnings=field_warnings)
+                                             common_fields=common_fields, field_warnings=field_warnings,
+                                             purchaser_name=common_fields["purchaser_name"])
                 except OcrError as exc:
                     # 永久错误、已经用过临时重试、或已到总次数上限，均停止本轮操作。
                     if not exc.retryable or retried or attempts == 3:
@@ -663,7 +665,12 @@ class BaiduInvoiceClient:
             LOGGER.warning("OCR 失败，错误类别=%s", exc.code)
             return RecognitionResult(error_code=exc.code, message=exc.message, request_id=request_id,
                                      elapsed_ms=round((self._clock() - started) * 1000), attempts=attempts,
-                                     common_fields=common_fields, field_warnings=field_warnings)
+                                     common_fields=common_fields, field_warnings=field_warnings,
+                                     purchaser_name=(
+                                         common_fields["purchaser_name"]
+                                         if common_fields is not None
+                                         else None
+                                     ))
 
 
 # 五、队友使用的两个公共入口

@@ -25,13 +25,14 @@ CREATE TABLE IF NOT EXISTS employees (
 
 CREATE TABLE IF NOT EXISTS invoices (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    invoice_no    TEXT NOT NULL UNIQUE,   -- 8 位发票号，UNIQUE 防止重复入库
+    invoice_no    TEXT NOT NULL UNIQUE,   -- 非空发票号码，UNIQUE 防止重复入库
     invoice_date  TEXT NOT NULL,          -- 开票日期 YYYY-MM-DD
     amount        REAL NOT NULL,          -- 金额（元）
     category      TEXT NOT NULL,          -- 餐饮/交通/办公/其他
     reimburser    TEXT NOT NULL,          -- 报销人
     photo_path    TEXT NOT NULL,          -- 发票照片路径
-    created_at    TEXT NOT NULL           -- 录入时间 YYYY-MM-DD HH:MM:SS
+    created_at    TEXT NOT NULL,          -- 录入时间 YYYY-MM-DD HH:MM:SS
+    is_edited     INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_invoices_date       ON invoices(invoice_date);
@@ -52,6 +53,15 @@ def init_database(db_path=None, reset=False):
             if reset:
                 conn.executescript(DROP)
             conn.executescript(SCHEMA)
+            invoice_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(invoices)").fetchall()
+            }
+            if "is_edited" not in invoice_columns:
+                conn.execute(
+                    "ALTER TABLE invoices ADD COLUMN "
+                    "is_edited INTEGER NOT NULL DEFAULT 0"
+                )
 
 
 def main():
