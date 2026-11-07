@@ -1,0 +1,8 @@
+requests>=2.32,<3
+Pillow>=12,<13
+python-dotenv>=1,<2
+rapidocr_onnxruntime>=1.4,<2; python_version < "3.13"
+rapidocr>=3.10,<4; python_version >= "3.13"
+onnxruntime>=1.7; python_version >= "3.13"
+PyMuPDF>=1.24,<2
+tkinterdnd2>=0.4.2,<1
