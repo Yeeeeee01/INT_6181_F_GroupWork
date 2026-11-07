@@ -19,6 +19,34 @@ python main.py
 
 首次启动会自动创建根目录的 `invoices.db`。照片成功入库后复制到 `photos/`；这两个运行数据路径已加入 `.gitignore`。
 
+## 文件结构
+
+```text
+.
+├── main.py                 # 桌面应用入口：发票录入、查询、员工管理和关于页面
+├── database.py             # SQLite 连接、发票及员工数据的增删查
+├── init_database.py        # 创建数据库表并迁移旧表结构
+├── validate.py             # 发票字段、日期、类别和重复票号校验
+├── storage.py              # 校验、归档可选发票文件并写入数据库
+├── query.py                # 组合筛选和当前查询结果汇总
+├── ocr.py                  # 百度 OCR 客户端、字段规范化及结果解析
+├── local_ocr.py            # 本地 RapidOCR 和 PDF 文本字段识别
+├── pdf_support.py          # PDF 校验、首页渲染及文本读取
+├── manual_input.py         # 人工确认、修改、手动录入和取消处理
+├── demo_B.py               # OCR 模块命令行演示（支持离线演示）
+├── example_B.py            # OCR 与手动录入接口示例
+├── README_B.md             # B 模块接口、配置、演示和测试说明
+├── requirements.txt        # Python 第三方依赖
+├── .env.example            # 百度 OCR 配置模板
+├── tests/
+│   └── test_application.py # 应用集成、校验、数据库及 OCR 相关测试
+├── test_pictures/          # 发票识别样例和操作/测试截图
+├── invoices.db             # 首次运行时创建的 SQLite 数据库（运行数据）
+└── photos/                 # 成功入库后归档的发票原件（运行数据）
+```
+
+应用从 `main.py` 启动：识别结果或手动填写的数据由 `validate.py` 校验，再由 `storage.py` 归档文件并调用 `database.py` 入库；`query.py` 为界面提供筛选和统计。百度 OCR 与本地识别分别由 `ocr.py` 和 `local_ocr.py` 提供，PDF 的读取及预览由 `pdf_support.py` 处理。`invoices.db` 和 `photos/` 保存本地运行数据，不属于程序源码。
+
 ## 界面功能
 
 ### 发票录入
