@@ -87,6 +87,11 @@ class InvoiceApp:
         self._scan_running = False
         self._scan_request_id = 0
         self._manual_edit_reminder_shown = False
+        self._wait_overlay: tk.Toplevel | None = None
+        self._wait_spinner_canvas: tk.Canvas | None = None
+        self._wait_spinner_item: int | None = None
+        self._wait_spinner_after_id: str | None = None
+        self._wait_spinner_angle = 0
 
         self._configure_style()
         self._build_header()
@@ -719,6 +724,80 @@ class InvoiceApp:
         self._viewer_fit_mode = True
         self._redraw_image_viewer()
 
+    def _show_wait_overlay(self) -> None:
+        if self._wait_overlay is not None:
+            return
+        self.root.update_idletasks()
+        overlay = tk.Toplevel(self.root)
+        overlay.withdraw()
+        overlay.overrideredirect(True)
+        overlay.transient(self.root)
+        overlay.attributes("-alpha", 0.72)
+        overlay.geometry(
+            f"{self.root.winfo_width()}x{self.root.winfo_height()}"
+            f"+{self.root.winfo_rootx()}+{self.root.winfo_rooty()}"
+        )
+        center = tk.Frame(overlay, background="#404040")
+        center.place(relx=0.5, rely=0.5, anchor="center")
+        spinner = tk.Canvas(
+            center,
+            width=72,
+            height=72,
+            background="#404040",
+            highlightthickness=0,
+        )
+        spinner.pack()
+        spinner.create_oval(10, 10, 62, 62, outline="#777777", width=5)
+        self._wait_spinner_item = spinner.create_arc(
+            10,
+            10,
+            62,
+            62,
+            start=0,
+            extent=100,
+            style="arc",
+            outline="white",
+            width=5,
+        )
+        tk.Label(
+            center,
+            text="请稍候...",
+            font=("", 16, "bold"),
+            foreground="white",
+            background="#404040",
+        ).pack(pady=(12, 0))
+        self._wait_spinner_canvas = spinner
+        self._wait_spinner_angle = 0
+        overlay.deiconify()
+        overlay.lift()
+        overlay.grab_set()
+        self._wait_overlay = overlay
+        self._animate_wait_spinner()
+
+    def _animate_wait_spinner(self) -> None:
+        if self._wait_overlay is None or self._wait_spinner_canvas is None:
+            return
+        self._wait_spinner_angle = (self._wait_spinner_angle + 24) % 360
+        self._wait_spinner_canvas.itemconfigure(
+            self._wait_spinner_item,
+            start=self._wait_spinner_angle,
+        )
+        self._wait_spinner_after_id = self._wait_overlay.after(
+            50, self._animate_wait_spinner
+        )
+
+    def _hide_wait_overlay(self) -> None:
+        overlay = self._wait_overlay
+        self._wait_overlay = None
+        if overlay is not None and self._wait_spinner_after_id is not None:
+            overlay.after_cancel(self._wait_spinner_after_id)
+        self._wait_spinner_after_id = None
+        self._wait_spinner_canvas = None
+        self._wait_spinner_item = None
+        if overlay is not None:
+            overlay.grab_release()
+            overlay.destroy()
+
     def _close_image_viewer(self) -> None:
         window = self._viewer_window
         self._viewer_window = None
@@ -752,6 +831,7 @@ class InvoiceApp:
         self.choose_button.configure(state="disabled")
         self.clear_button.configure(state="disabled")
         self.save_button.configure(state="disabled")
+        self._show_wait_overlay()
         backend_name = "百度 OCR" if backend == "baidu" else "本地 RapidOCR"
         if self.image_path is not None and self.image_path.suffix.lower() == ".pdf":
             backend_name += "（PDF 第 1 页）"
@@ -799,6 +879,7 @@ class InvoiceApp:
         if request_id != self._scan_request_id:
             return
         self._scan_running = False
+        self._hide_wait_overlay()
         self.scan_button.configure(state="normal")
         self.local_scan_button.configure(state="normal")
         self.choose_button.configure(state="normal")
@@ -926,6 +1007,14 @@ class InvoiceApp:
             messagebox.showerror(
                 "缺少发票文件",
                 "请先上传发票图片或 PDF，再保存发票信息。",
+                parent=self.root,
+            )
+            return
+        purchaser_tax_no = self.recognized_field_vars["purchaser_tax_no"].get().strip()
+        if not purchaser_tax_no:
+            messagebox.showerror(
+                "缺少纳税人识别号",
+                "请输入纳税人识别号。",
                 parent=self.root,
             )
             return

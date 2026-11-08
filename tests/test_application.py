@@ -280,6 +280,26 @@ class ApplicationIntegrationTests(unittest.TestCase):
         )
         save_invoice.assert_not_called()
 
+    def test_saving_without_purchaser_tax_number_is_rejected(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app.image_path = Path("invoice.jpg")
+        app.root = object()
+        app.recognized_field_vars = {"purchaser_tax_no": Mock(get=Mock(return_value="  "))}
+        app.field_vars = {"reimburser": Mock(get=Mock(return_value="测试员工"))}
+
+        with (
+            patch.object(main.messagebox, "showerror") as showerror,
+            patch.object(storage, "save_invoice") as save_invoice,
+        ):
+            app.save_current_invoice()
+
+        showerror.assert_called_once_with(
+            "缺少纳税人识别号",
+            "请输入纳税人识别号。",
+            parent=app.root,
+        )
+        save_invoice.assert_not_called()
+
     def test_editing_without_invoice_file_shows_reminder_only_once(self):
         app = main.InvoiceApp.__new__(main.InvoiceApp)
         app.image_path = None
@@ -340,6 +360,99 @@ class ApplicationIntegrationTests(unittest.TestCase):
         for marker_var in app.field_edit_marker_vars.values():
             marker_var.set.assert_called_once_with("")
         self.assertIsNone(app.ocr_baseline)
+
+    def test_wait_overlay_is_translucent_modal_and_can_be_closed(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app.root = Mock()
+        app.root.winfo_width.return_value = 1120
+        app.root.winfo_height.return_value = 760
+        app.root.winfo_rootx.return_value = 20
+        app.root.winfo_rooty.return_value = 30
+        overlay = Mock()
+        overlay.after.return_value = "spinner-timer"
+        center = Mock()
+        spinner = Mock()
+        spinner.create_arc.return_value = 42
+        app._wait_overlay = None
+        app._wait_spinner_canvas = None
+        app._wait_spinner_item = None
+        app._wait_spinner_after_id = None
+        app._wait_spinner_angle = 0
+
+        with (
+            patch.object(main.tk, "Toplevel", return_value=overlay) as toplevel,
+            patch.object(main.tk, "Frame", return_value=center) as frame,
+            patch.object(main.tk, "Canvas", return_value=spinner) as canvas,
+            patch.object(main.tk, "Label") as label,
+        ):
+            app._show_wait_overlay()
+
+        toplevel.assert_called_once_with(app.root)
+        overlay.attributes.assert_called_once_with("-alpha", 0.72)
+        overlay.geometry.assert_called_once_with("1120x760+20+30")
+        center.place.assert_called_once_with(relx=0.5, rely=0.5, anchor="center")
+        frame.assert_called_once_with(overlay, background="#404040")
+        canvas.assert_called_once_with(
+            center,
+            width=72,
+            height=72,
+            background="#404040",
+            highlightthickness=0,
+        )
+        spinner.create_oval.assert_called_once_with(
+            10, 10, 62, 62, outline="#777777", width=5
+        )
+        spinner.create_arc.assert_called_once_with(
+            10,
+            10,
+            62,
+            62,
+            start=0,
+            extent=100,
+            style="arc",
+            outline="white",
+            width=5,
+        )
+        label.assert_called_once_with(
+            center,
+            text="请稍候...",
+            font=("", 16, "bold"),
+            foreground="white",
+            background="#404040",
+        )
+        spinner.itemconfigure.assert_called_once_with(42, start=24)
+        overlay.after.assert_called_once_with(50, app._animate_wait_spinner)
+        overlay.grab_set.assert_called_once_with()
+        self.assertIs(app._wait_overlay, overlay)
+        self.assertIs(app._wait_spinner_canvas, spinner)
+
+        app._hide_wait_overlay()
+
+        overlay.after_cancel.assert_called_once_with("spinner-timer")
+        overlay.grab_release.assert_called_once_with()
+        overlay.destroy.assert_called_once_with()
+        self.assertIsNone(app._wait_overlay)
+        self.assertIsNone(app._wait_spinner_canvas)
+
+    def test_ocr_completion_hides_wait_overlay_on_error(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app._scan_request_id = 1
+        app._scan_running = True
+        app._hide_wait_overlay = Mock()
+        app.scan_button = Mock()
+        app.local_scan_button = Mock()
+        app.choose_button = Mock()
+        app.clear_button = Mock()
+        app.save_button = Mock()
+        app.entry_status_var = Mock()
+
+        app._finish_ocr(None, "识别时发生意外错误；请查看终端日志。", 1, "local")
+
+        app._hide_wait_overlay.assert_called_once_with()
+        self.assertFalse(app._scan_running)
+        app.entry_status_var.set.assert_called_once_with(
+            "识别时发生意外错误；请查看终端日志。"
+        )
 
     def test_viewer_resize_preserves_aspect_ratio_and_caps_large_images(self):
         self.assertEqual(main._scaled_image_size(1200, 800, 0.5), (600, 400))
