@@ -106,8 +106,6 @@ BAIDU_API_KEY=你的APIKey
 BAIDU_SECRET_KEY=你的SecretKey
 ```
 
-不要把真实密钥提交到公开仓库。未配置密钥或离线时，可以使用本地 RapidOCR；RapidOCR 是本地推理，不需要百度密钥。首次推理可能需要加载模型文件。两种识别结果都应人工核对。
-
 ## 离线验证
 
 运行 A/B 联动和数据库迁移测试：
