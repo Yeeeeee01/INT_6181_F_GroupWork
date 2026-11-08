@@ -129,7 +129,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
         )
         content_frame.pack.assert_called_once_with(anchor="n", pady=(20, 0))
         heading_frame.pack.assert_called_once_with()
-        heading_frame.pack_propagate.assert_called_once_with(True)
+        heading_frame.pack_propagate.assert_called_once_with(False)
         self.assertEqual(
             [item.pack.call_args for item in labels[:2]],
             [
@@ -190,7 +190,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
                 ),
             ]
         )
-        heading_frame.configure.assert_called_once_with(width=240)
+        heading_frame.configure.assert_called_once_with(width=240, height=110)
         self.assertEqual(
             [call.args[0] for call in style.return_value.configure.call_args_list],
             [
