@@ -423,7 +423,7 @@ class InvoiceApp:
         content.pack(anchor="n", pady=(20, 0))
         self.about_heading_frame = ttk.Frame(content)
         self.about_heading_frame.pack()
-        self.about_heading_frame.pack_propagate(False)
+        self.about_heading_frame.pack_propagate(True)
         ttk.Label(
             self.about_heading_frame,
             text=ABOUT_TITLE,
@@ -494,12 +494,10 @@ class InvoiceApp:
             font=style.lookup("AboutSubtitle.TLabel", "font"),
         )
         self.about_heading_frame.configure(
-            width=title_font.measure(ABOUT_TITLE),
-            height=(
-                title_font.metrics("linespace")
-                + subtitle_font.metrics("linespace")
-                + 12
-            ),
+            width=max(
+                title_font.measure(ABOUT_TITLE),
+                subtitle_font.measure(ABOUT_SUBTITLE),
+            )
         )
 
     def choose_image(self) -> None:

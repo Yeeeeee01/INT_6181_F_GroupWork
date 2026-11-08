@@ -76,8 +76,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
         label = Mock(side_effect=labels)
         title_font, subtitle_font = Mock(), Mock()
         title_font.measure.return_value = 240
-        title_font.metrics.return_value = 32
-        subtitle_font.metrics.return_value = 22
+        subtitle_font.measure.return_value = 180
         style = Mock()
         style.return_value.lookup.side_effect = ("title font", "subtitle font")
 
@@ -130,7 +129,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
         )
         content_frame.pack.assert_called_once_with(anchor="n", pady=(20, 0))
         heading_frame.pack.assert_called_once_with()
-        heading_frame.pack_propagate.assert_called_once_with(False)
+        heading_frame.pack_propagate.assert_called_once_with(True)
         self.assertEqual(
             [item.pack.call_args for item in labels[:2]],
             [
@@ -191,7 +190,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
                 ),
             ]
         )
-        heading_frame.configure.assert_called_once_with(width=240, height=66)
+        heading_frame.configure.assert_called_once_with(width=240)
         self.assertEqual(
             [call.args[0] for call in style.return_value.configure.call_args_list],
             [
