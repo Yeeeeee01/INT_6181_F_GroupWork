@@ -54,14 +54,10 @@ python main.py
 ├── test_pictures/
 │   ├── CN-*.jpg / *.png       # 发票 OCR 测试样例
 │   └── screenshots/           # 使用说明和测试演示截图
-├── .venv/                     # 可选：Python 3.12 虚拟环境，不提交
-├── .venv314/                  # 可选：Python 3.14 虚拟环境，不提交
-├── .env                       # 本地百度密钥配置（自行创建，不提交）
 ├── invoices.db                # 首次运行时创建的 SQLite 数据库
 └── photos/                    # 成功入库后归档的原始发票文件
 ```
 
-`.venv/`、`.venv314/`、`.env`、`invoices.db` 和 `photos/` 是本地环境、配置或运行数据，不属于源码交付；其中 `.env` 应自行创建并填写百度密钥，不要提交真实凭据。
 
 ## 系统功能与代码分工
 
@@ -109,8 +105,6 @@ python main.py
 BAIDU_API_KEY=你的APIKey
 BAIDU_SECRET_KEY=你的SecretKey
 ```
-
-不要把真实密钥提交到公开仓库。未配置密钥或离线时，可以使用本地 RapidOCR；RapidOCR 是本地推理，不需要百度密钥。首次推理可能需要加载模型文件。两种识别结果都应人工核对。
 
 ## 离线验证
 
