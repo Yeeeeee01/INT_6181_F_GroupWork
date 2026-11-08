@@ -33,7 +33,7 @@ ABOUT_TITLE = "INT 6181_F组小组作业"
 ABOUT_SUBTITLE = "特别鸣谢全组成员"
 ABOUT_MEMBERS = (
     ("CHEN JIMAI", "11750193"),
-    ("WU YIHENG", "未提供"),
+    ("WU YIHENG", "11769388"),
     ("YANG BO", "11769182"),
     ("YE ZHAOLAN", "11796214"),
     ("ZHANG YANG", "11749625"),
