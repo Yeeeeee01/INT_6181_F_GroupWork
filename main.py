@@ -444,7 +444,7 @@ class InvoiceApp:
             text="姓名",
             style="AboutHeading.TLabel",
             anchor="center",
-        ).grid(row=0, column=0, sticky="ew", padx=(0, 60), pady=(0, 8))
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 120), pady=(0, 8))
         ttk.Label(
             members_table,
             text="学号",
@@ -455,7 +455,7 @@ class InvoiceApp:
             ttk.Label(
                 members_table, text=name, style="AboutMember.TLabel", anchor="center"
             ).grid(
-                row=row, column=0, sticky="ew", padx=(0, 60), pady=3
+                row=row, column=0, sticky="ew", padx=(0, 120), pady=3
             )
             ttk.Label(
                 members_table,
@@ -906,7 +906,7 @@ class InvoiceApp:
         if edited_fields:
             self.edit_marker_var.set("该发票经过编辑（保存时会记录）")
         else:
-            self.edit_marker_var.set("OCR 字段尚未修改")
+            self.edit_marker_var.set("OCR字段未经编辑")
 
     def _clear_field_edit_markers(self) -> None:
         for marker_var in self.field_edit_marker_vars.values():

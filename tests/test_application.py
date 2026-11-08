@@ -155,7 +155,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
             [item.grid.call_args for item in labels[2:]],
             [
                 unittest.mock.call(
-                    row=0, column=0, sticky="ew", padx=(0, 60), pady=(0, 8)
+                    row=0, column=0, sticky="ew", padx=(0, 120), pady=(0, 8)
                 ),
                 unittest.mock.call(
                     row=0, column=1, sticky="ew", pady=(0, 8)
@@ -165,7 +165,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
                         row=row,
                         column=column,
                         sticky="ew",
-                        **({"padx": (0, 60)} if column == 0 else {}),
+                        **({"padx": (0, 120)} if column == 0 else {}),
                         pady=3,
                     )
                     for row in range(1, len(main.ABOUT_MEMBERS) + 1)
