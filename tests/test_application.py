@@ -174,7 +174,7 @@ class ApplicationIntegrationTests(unittest.TestCase):
                 ],
             ],
         )
-        members_table.pack.assert_called_once_with(pady=(20, 0))
+        members_table.pack.assert_called_once_with(pady=(40, 0))
         app.about_tab.bind.assert_called_once_with(
             "<Configure>", app._update_about_fonts, add="+"
         )
@@ -210,6 +210,137 @@ class ApplicationIntegrationTests(unittest.TestCase):
         self.assertEqual(normal, (30, 19, 16))
         self.assertTrue(all(size > small for size, small in zip(normal, compact)))
         self.assertTrue(all(size > normal_size for size, normal_size in zip(expanded, normal)))
+
+    def test_ocr_field_edit_markers_appear_and_clear_when_values_are_restored(self):
+        import tkinter
+
+        interpreter = tkinter.Tcl()
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        keys = (
+            "purchaser_name",
+            "purchaser_tax_no",
+            "invoice_no",
+            "date",
+            "amount",
+        )
+        original_values = {
+            "purchaser_name": "测试有限公司",
+            "purchaser_tax_no": "91310000123456789X",
+            "invoice_no": "00123456",
+            "date": "2026-11-06",
+            "amount": 81.0,
+        }
+        app.ocr_baseline = dict(original_values)
+        app.recognized_field_vars = {
+            key: tkinter.StringVar(interpreter, value=str(original_values[key]))
+            for key in keys[:2]
+        }
+        app.field_vars = {
+            key: tkinter.StringVar(interpreter, value=str(original_values[key]))
+            for key in keys[2:]
+        }
+        app.field_edit_marker_vars = {
+            key: tkinter.StringVar(interpreter) for key in keys
+        }
+        app.edit_marker_var = tkinter.StringVar(interpreter)
+        for variable in (*app.recognized_field_vars.values(), *app.field_vars.values()):
+            variable.trace_add("write", app._update_edit_marker)
+
+        for key in keys:
+            variable = (
+                app.recognized_field_vars[key]
+                if key in app.recognized_field_vars
+                else app.field_vars[key]
+            )
+            edited_value = "已修改" if key.startswith("purchaser_") else (
+                "82.00" if key == "amount" else "已修改"
+            )
+            variable.set(edited_value)
+            self.assertEqual(app.field_edit_marker_vars[key].get(), "经编辑")
+            self.assertTrue(app._record_is_edited())
+
+            variable.set(str(original_values[key]))
+            self.assertEqual(app.field_edit_marker_vars[key].get(), "")
+            self.assertFalse(app._record_is_edited())
+
+    def test_saving_without_invoice_file_is_rejected(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app.image_path = None
+        app.root = object()
+
+        with (
+            patch.object(main.messagebox, "showerror") as showerror,
+            patch.object(storage, "save_invoice") as save_invoice,
+        ):
+            app.save_current_invoice()
+
+        showerror.assert_called_once_with(
+            "缺少发票文件",
+            "请先上传发票图片或 PDF，再保存发票信息。",
+            parent=app.root,
+        )
+        save_invoice.assert_not_called()
+
+    def test_editing_without_invoice_file_shows_reminder_only_once(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app.image_path = None
+        app.root = object()
+        app._manual_edit_reminder_shown = False
+
+        with patch.object(main.messagebox, "showwarning") as showwarning:
+            app._warn_before_manual_edit()
+            app._warn_before_manual_edit()
+
+        showwarning.assert_called_once_with(
+            "请先上传发票",
+            "请先上传图片或PDF发票后再人工录入",
+            parent=app.root,
+        )
+
+    def test_editing_with_invoice_file_does_not_show_reminder(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app.image_path = Path("invoice.jpg")
+        app.root = object()
+        app._manual_edit_reminder_shown = False
+
+        with patch.object(main.messagebox, "showwarning") as showwarning:
+            app._warn_before_manual_edit()
+
+        showwarning.assert_not_called()
+
+    def test_clearing_form_hides_all_field_edit_markers(self):
+        app = main.InvoiceApp.__new__(main.InvoiceApp)
+        app._close_image_viewer = Mock()
+        app.field_vars = {
+            key: Mock() for key in ("invoice_no", "date", "amount", "category", "reimburser")
+        }
+        app.image_path = Path("invoice.jpg")
+        app._manual_edit_reminder_shown = True
+        app.path_var = Mock()
+        app.ocr_baseline = {"invoice_no": "00123456"}
+        app.preview_image = object()
+        app.preview_label = Mock()
+        app.recognized_field_vars = {
+            key: Mock() for key in ("purchaser_name", "purchaser_tax_no")
+        }
+        app.field_edit_marker_vars = {
+            key: Mock() for key in (
+                "purchaser_name",
+                "purchaser_tax_no",
+                "invoice_no",
+                "date",
+                "amount",
+            )
+        }
+        app.common_fields_var = Mock()
+        app.edit_marker_var = Mock()
+        app.entry_status_var = Mock()
+
+        app.clear_form()
+
+        for marker_var in app.field_edit_marker_vars.values():
+            marker_var.set.assert_called_once_with("")
+        self.assertIsNone(app.ocr_baseline)
 
     def test_viewer_resize_preserves_aspect_ratio_and_caps_large_images(self):
         self.assertEqual(main._scaled_image_size(1200, 800, 0.5), (600, 400))

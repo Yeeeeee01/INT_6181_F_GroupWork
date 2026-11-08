@@ -86,6 +86,7 @@ class InvoiceApp:
         self._viewer_fit_mode = True
         self._scan_running = False
         self._scan_request_id = 0
+        self._manual_edit_reminder_shown = False
 
         self._configure_style()
         self._build_header()
@@ -99,6 +100,7 @@ class InvoiceApp:
             style.theme_use("clam")
         style.configure("Title.TLabel", font=("", 20, "bold"))
         style.configure("Hint.TLabel", foreground="#536273")
+        style.configure("Edited.TLabel", foreground="#b54708")
         style.configure("Treeview", rowheight=28)
         style.configure("Treeview.Heading", font=("", 10, "bold"))
 
@@ -166,6 +168,16 @@ class InvoiceApp:
             key: tk.StringVar()
             for key in ("purchaser_name", "purchaser_tax_no")
         }
+        self.field_edit_marker_vars = {
+            key: tk.StringVar()
+            for key in (
+                "purchaser_name",
+                "purchaser_tax_no",
+                "invoice_no",
+                "date",
+                "amount",
+            )
+        }
         recognized_fields = (
             ("purchaser_name", "购买方名称"),
             ("purchaser_tax_no", "统一社会信用代码/纳税人识别号"),
@@ -174,11 +186,19 @@ class InvoiceApp:
             ttk.Label(form, text=label).grid(
                 row=row, column=0, sticky="w", pady=9
             )
-            ttk.Entry(
+            control = ttk.Entry(form, textvariable=self.recognized_field_vars[key])
+            control.grid(
+                row=row, column=1, sticky="ew", pady=9
+            )
+            control.bind("<FocusIn>", self._warn_before_manual_edit, add="+")
+            self.recognized_field_vars[key].trace_add(
+                "write", self._update_edit_marker
+            )
+            ttk.Label(
                 form,
-                textvariable=self.recognized_field_vars[key],
-                state="readonly",
-            ).grid(row=row, column=1, sticky="ew", pady=9)
+                textvariable=self.field_edit_marker_vars[key],
+                style="Edited.TLabel",
+            ).grid(row=row, column=2, sticky="w", padx=(8, 0), pady=9)
 
         self.field_vars = {
             key: tk.StringVar()
@@ -209,23 +229,31 @@ class InvoiceApp:
             else:
                 control = ttk.Entry(form, textvariable=self.field_vars[key])
             control.grid(row=row, column=1, sticky="ew", pady=9)
-            self.field_vars[key].trace_add("write", self._update_edit_marker)
+            if key != "category":
+                control.bind("<FocusIn>", self._warn_before_manual_edit, add="+")
+            if key in self.field_edit_marker_vars:
+                self.field_vars[key].trace_add("write", self._update_edit_marker)
+                ttk.Label(
+                    form,
+                    textvariable=self.field_edit_marker_vars[key],
+                    style="Edited.TLabel",
+                ).grid(row=row, column=2, sticky="w", padx=(8, 0), pady=9)
 
         self.edit_marker_var = tk.StringVar(value="尚未进行 OCR 识别")
         ttk.Label(form, textvariable=self.edit_marker_var, style="Hint.TLabel").grid(
-            row=row_offset + len(fields), column=0, columnspan=2, sticky="w", pady=(10, 4)
+            row=row_offset + len(fields), column=0, columnspan=3, sticky="w", pady=(10, 4)
         )
         self.entry_status_var = tk.StringVar(
-            value="选择发票图片或 PDF 后可识别；也可不选文件，直接手动填写。"
+            value="可手动填写或识别发票；保存前必须选择发票图片或 PDF。"
         )
         ttk.Label(
             form,
             textvariable=self.entry_status_var,
             wraplength=480,
             justify="left",
-        ).grid(row=row_offset + len(fields) + 1, column=0, columnspan=2, sticky="w", pady=8)
+        ).grid(row=row_offset + len(fields) + 1, column=0, columnspan=3, sticky="w", pady=8)
         actions = ttk.Frame(form)
-        actions.grid(row=row_offset + len(fields) + 2, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        actions.grid(row=row_offset + len(fields) + 2, column=0, columnspan=3, sticky="e", pady=(12, 0))
         self.clear_button = ttk.Button(
             actions, text="清空表单", command=self.clear_form
         )
@@ -437,7 +465,7 @@ class InvoiceApp:
             ).grid(
                 row=row, column=1, sticky="ew", pady=3
             )
-        members_table.pack(pady=(20, 0))
+        members_table.pack(pady=(40, 0))
         self.about_tab.bind("<Configure>", self._update_about_fonts, add="+")
         self._update_about_fonts()
 
@@ -497,6 +525,7 @@ class InvoiceApp:
             return False
         self._close_image_viewer()
         self.image_path = image_path
+        self._manual_edit_reminder_shown = False
         self.path_var.set(str(self.image_path))
         self._show_preview(self.image_path)
         self.entry_status_var.set(
@@ -508,6 +537,7 @@ class InvoiceApp:
         for key in ("invoice_no", "date", "amount", "category"):
             self.field_vars[key].set("")
         self._clear_recognized_fields()
+        self._clear_field_edit_markers()
         self.common_fields_var.set("可选票面信息将在 OCR 后显示。")
         self.edit_marker_var.set("尚未进行 OCR 识别")
         self._update_edit_marker()
@@ -786,6 +816,7 @@ class InvoiceApp:
         self.common_fields_var.set(self._common_fields_summary(result.common_fields))
         if result.record is None:
             self.ocr_baseline = None
+            self._clear_field_edit_markers()
             self.entry_status_var.set(
                 f"{backend_name} 未完成 [{result.error_code}]："
                 f"{result.message}。可继续手动填写或切换另一识别方式。"
@@ -794,6 +825,8 @@ class InvoiceApp:
             return
 
         self.ocr_baseline = dict(result.record)
+        for key in self.recognized_field_vars:
+            self.ocr_baseline[key] = self.recognized_field_vars[key].get()
         for key in ("invoice_no", "date", "amount"):
             self.field_vars[key].set(str(result.record[key]))
         self.field_vars["category"].set("")
@@ -832,7 +865,7 @@ class InvoiceApp:
     ) -> None:
         for key in self.recognized_field_vars:
             value = fields[key] if fields else None
-            self.recognized_field_vars[key].set(value or "未识别/未填写")
+            self.recognized_field_vars[key].set(value or "")
 
     def _clear_recognized_fields(self) -> None:
         for variable in self.recognized_field_vars.values():
@@ -841,6 +874,15 @@ class InvoiceApp:
     def _record_is_edited(self) -> bool:
         if self.ocr_baseline is None:
             return False
+        return bool(self._edited_fields())
+
+    def _edited_fields(self) -> set[str]:
+        if self.ocr_baseline is None:
+            return set()
+        edited = set()
+        for key in self.recognized_field_vars:
+            if self.recognized_field_vars[key].get() != self.ocr_baseline[key]:
+                edited.add(key)
         parsers = {
             "invoice_no": normalize_invoice_no,
             "date": normalize_date,
@@ -849,22 +891,45 @@ class InvoiceApp:
         for key, parser in parsers.items():
             try:
                 if parser(self.field_vars[key].get()) != self.ocr_baseline[key]:
-                    return True
+                    edited.add(key)
             except ValueError:
-                return True
-        return False
+                edited.add(key)
+        return edited
 
     def _update_edit_marker(self, *trace_info) -> None:
         if len(trace_info) not in {0, 3}:
             return
         if self.ocr_baseline is None:
             return
-        if self._record_is_edited():
+        edited_fields = self._edited_fields()
+        for key, marker_var in self.field_edit_marker_vars.items():
+            marker_var.set("经编辑" if key in edited_fields else "")
+        if edited_fields:
             self.edit_marker_var.set("该发票经过编辑（保存时会记录）")
         else:
             self.edit_marker_var.set("OCR 字段尚未修改")
 
+    def _clear_field_edit_markers(self) -> None:
+        for marker_var in self.field_edit_marker_vars.values():
+            marker_var.set("")
+
+    def _warn_before_manual_edit(self, _event: tk.Event | None = None) -> None:
+        if self.image_path is None and not self._manual_edit_reminder_shown:
+            self._manual_edit_reminder_shown = True
+            messagebox.showwarning(
+                "请先上传发票",
+                "请先上传图片或PDF发票后再人工录入",
+                parent=self.root,
+            )
+
     def save_current_invoice(self) -> None:
+        if self.image_path is None:
+            messagebox.showerror(
+                "缺少发票文件",
+                "请先上传发票图片或 PDF，再保存发票信息。",
+                parent=self.root,
+            )
+            return
         reimburser = self.field_vars["reimburser"].get().strip()
         if not reimburser:
             messagebox.showerror("缺少报销人", "请输入报销人姓名。", parent=self.root)
@@ -910,15 +975,17 @@ class InvoiceApp:
         for variable in self.field_vars.values():
             variable.set("")
         self.image_path = None
+        self._manual_edit_reminder_shown = False
         self.path_var.set("")
         self.ocr_baseline = None
         self.preview_image = None
         self.preview_label.configure(image="", text="尚未选择发票")
         self._clear_recognized_fields()
+        self._clear_field_edit_markers()
         self.common_fields_var.set("可选票面信息将在 OCR 后显示。")
         self.edit_marker_var.set("尚未进行 OCR 识别")
         self.entry_status_var.set(
-            "选择发票图片或 PDF 后可识别；也可不选文件，直接手动填写。"
+            "可手动填写或识别发票；保存前必须选择发票图片或 PDF。"
         )
 
     def refresh_employees(self) -> None:
